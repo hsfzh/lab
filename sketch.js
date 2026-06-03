@@ -8,6 +8,7 @@ let SYSTEM_PROMPT = `당신은 텍스트 RPG 게임의 게임 마스터(GM)입�
 3. 묘사 후, 플레이어가 선택할 수 있는 행동 번호를 2~3가지 제시하세요.
 4. 플레이어가 번호나 행동을 입력하면, 그에 따른 결과와 다음 상황을 이어가세요. 만약 주어진 선택지를 고르는 것 외의 다른 행동을 하면 그것에 맞춰 다음 상황을 이어가세요. 
 5. 플레이어의 행동을 이해하지 못하면 그냥 게임오버 시키세요. 
+6. 끝없이 이어지는 게임이 아닌 적절한 상황에 게임의 엔딩을 만드세요. (해피엔딩 새드엔등 등)
 
 처음 시작은 숲의 입구에서 야생 몬스터와 마주친 상황으로 바로 시작해 주세요!
 마지막 행동 선택지 입력시 반드시 번호 앞에 줄바꿈 문자를 넣어주세요. (예: \n1. 공격한다 \n2. 아이템을 사용한다)`;
@@ -25,6 +26,7 @@ let startPrompt = {
 5. 즐겁게 탐험하십시오!`
   }]
 };
+let scrollOffset = 0;
 
 function setup() {
   createCanvas(640, windowHeight - 50);
@@ -175,7 +177,6 @@ function displayChats() {
 
   for (let i = 0; i < chatLength; i++) {
     let originalText = chats[i].parts[0].text;
-    
     let wrappedText = formatText(originalText, 30); 
     formattedTexts.push(wrappedText);
 
@@ -199,38 +200,47 @@ function displayChats() {
     chatBoxHeight.push(0);
   }
   
+  let currentY = height - 30;
+  for (let i = chatLength - 1; i >= 0; i--) {
+    currentY -= chatBoxSize[i].y;
+    chatBoxHeight[i] = currentY;
+    currentY -= 10;
+  }
+
+  let maxScroll = 0;
+  if (chatLength > 0 && chatBoxHeight[0] < 60) {
+    maxScroll = 60 - chatBoxHeight[0];
+  }
+  scrollOffset = constrain(scrollOffset, 0, maxScroll);
+  
   for (let i = chatLength - 1; i >= 0; i--) {
     let boxX = chatBoxSize[i].x;
     let boxY = chatBoxSize[i].y;
-    let xPos;
+    let xPos = (chats[i].role == 'user') ? 630 - boxX : 10;
     
-    let yPos = i < chatLength - 1 ? chatBoxHeight[i + 1] - boxY - 10 : height - 30 - boxY; 
+    let finalY = chatBoxHeight[i] + scrollOffset;
     
-    if (chats[i].role == 'user') {
-      xPos = 630 - boxX;
-    } else {
-      xPos = 10;
-    }
-    
-    chatBoxHeight[i] = yPos;
-    
-    if (yPos + boxY > 0) {
+    if (finalY + boxY > 0) { 
       fill(255);
-      rect(xPos, yPos, boxX, boxY, 8);
+      rect(xPos, finalY, boxX, boxY, 8);
       fill(0);
       
       textAlign(CENTER, TOP);
       let boxCenterX = xPos + boxX / 2;
-      
-      text(formattedTexts[i], boxCenterX, yPos + padY); 
+      text(formattedTexts[i], boxCenterX, finalY + padY); 
     }
   }
 
-  // 상단 헤더 UI
   fill(0);
   rect(0, 0, width, 50);
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(20);
   text("텍스트 RPG", width/2, 25);
+}
+
+function mouseWheel(event) {
+  scrollOffset -= event.delta;
+  displayChats();
+  return false;
 }
